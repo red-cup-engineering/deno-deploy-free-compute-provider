@@ -81,30 +81,30 @@ function jsonResponse(status: number, document: Record<string, unknown>): Respon
   });
 }
 
-function refusal(status: number, error: string, message: string): Response {
+function rejection(status: number, error: string, message: string): Response {
   return jsonResponse(status, { contract: CONTRACT, error, message });
 }
 
 function parseCanonicalText(body: Uint8Array): Uint8Array | Response {
   let source: string;
   try { source = decoder.decode(body); }
-  catch { return refusal(400, "invalid-json", "body must be canonical UTF-8 JSON"); }
+  catch { return rejection(400, "invalid-json", "body must be canonical UTF-8 JSON"); }
   let document: unknown;
   try { document = JSON.parse(source); }
-  catch { return refusal(400, "invalid-json", "body must be canonical UTF-8 JSON"); }
+  catch { return rejection(400, "invalid-json", "body must be canonical UTF-8 JSON"); }
   if (document === null || typeof document !== "object" || Array.isArray(document)) {
-    return refusal(400, "invalid-fields", "body must contain exactly one text field");
+    return rejection(400, "invalid-fields", "body must contain exactly one text field");
   }
   const record = document as Record<string, unknown>;
   if (Object.keys(record).length !== 1 || typeof record.text !== "string") {
-    return refusal(400, "invalid-fields", "body must contain exactly one text field");
+    return rejection(400, "invalid-fields", "body must contain exactly one text field");
   }
   if (JSON.stringify({ text: record.text }) !== source) {
-    return refusal(400, "noncanonical-json", "body must use the canonical JSON encoding");
+    return rejection(400, "noncanonical-json", "body must use the canonical JSON encoding");
   }
   const text = encoder.encode(record.text);
   if (text.byteLength > MAX_TEXT_BYTES) {
-    return refusal(413, "text-too-large", `text exceeds ${MAX_TEXT_BYTES} UTF-8 bytes`);
+    return rejection(413, "text-too-large", `text exceeds ${MAX_TEXT_BYTES} UTF-8 bytes`);
   }
   return text;
 }
@@ -136,24 +136,24 @@ export function createHandler(
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     const url = new URL(request.url);
-    if (url.search !== "") return refusal(404, "not-found", "operation does not exist");
+    if (url.search !== "") return rejection(404, "not-found", "operation does not exist");
     if (request.method === "GET" && url.pathname === "/health") {
       return jsonResponse(200, { contract: CONTRACT, planAdmission: "free_verified-required", state: "ephemeral", status: "ready" });
     }
-    if (request.method !== "POST") return refusal(405, "method-not-allowed", "use GET /health or POST to one v1 operation");
+    if (request.method !== "POST") return rejection(405, "method-not-allowed", "use GET /health or POST to one v1 operation");
     if (url.pathname !== "/v1/sha256" && url.pathname !== "/v1/pbkdf2") {
-      return refusal(404, "not-found", "operation does not exist");
+      return rejection(404, "not-found", "operation does not exist");
     }
     if ((request.headers.get("content-type") ?? "").split(";", 1)[0].trim().toLowerCase() !== "application/json") {
-      return refusal(415, "unsupported-media-type", "Content-Type must be application/json");
+      return rejection(415, "unsupported-media-type", "Content-Type must be application/json");
     }
     const rawLength = request.headers.get("content-length") ?? "";
-    if (!/^[0-9]+$/.test(rawLength)) return refusal(411, "length-required", "Content-Length is required");
+    if (!/^[0-9]+$/.test(rawLength)) return rejection(411, "length-required", "Content-Length is required");
     const length = Number(rawLength);
-    if (length > MAX_BODY_BYTES) return refusal(413, "body-too-large", `body exceeds ${MAX_BODY_BYTES} bytes`);
+    if (length > MAX_BODY_BYTES) return rejection(413, "body-too-large", `body exceeds ${MAX_BODY_BYTES} bytes`);
     const body = new Uint8Array(await request.arrayBuffer());
-    if (body.byteLength !== length) return refusal(400, "invalid-length", "Content-Length does not match body bytes");
-    if (!await verifySignature(request, body, now())) return refusal(401, "invalid-signature", "a recent valid Union signature is required");
+    if (body.byteLength !== length) return rejection(400, "invalid-length", "Content-Length does not match body bytes");
+    if (!await verifySignature(request, body, now())) return rejection(401, "invalid-signature", "a recent valid Union signature is required");
     const text = parseCanonicalText(body);
     if (text instanceof Response) return text;
     return jsonResponse(200, await compute(url.pathname, text));
