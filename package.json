@@ -1,0 +1,24 @@
+{
+  "name": "@red-cup-engineering/deno-deploy-free-compute-provider",
+  "version": "0.1.3-dev.0",
+  "type": "module",
+  "description": "Signed bounded edge compute admitted only while Deno reports the owning organization free_verified.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/red-cup-engineering/deno-deploy-free-compute-provider.git"
+  },
+  "bin": {
+    "invoke-deno-free-compute": "./scripts/invoke-deno-free-compute.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@red-cup-engineering/cryptographic-computer-data-engineering-services-section": "^0.3.5"
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
+  }
+}
