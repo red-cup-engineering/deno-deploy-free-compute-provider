@@ -33,13 +33,13 @@ function hex(bytes: ArrayBuffer | Uint8Array): string {
   return [...view].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
+async function edgeWorkerBodyDigestHex(bytes: Uint8Array): Promise<string> {
   return hex(await crypto.subtle.digest("SHA-256", arrayBuffer(bytes)));
 }
 
 export async function signatureMessage(request: Request, body: Uint8Array, timestamp: string): Promise<Uint8Array> {
   const url = new URL(request.url);
-  return encoder.encode(`${request.method}\n${url.pathname}\n${timestamp}\n${await sha256Hex(body)}`);
+  return encoder.encode(`${request.method}\n${url.pathname}\n${timestamp}\n${await edgeWorkerBodyDigestHex(body)}`);
 }
 
 const publicKeyPromise = crypto.subtle.importKey(
@@ -111,7 +111,7 @@ function parseCanonicalText(body: Uint8Array): Uint8Array | Response {
 
 async function compute(path: string, text: Uint8Array): Promise<Record<string, unknown>> {
   if (path === "/v1/sha256") {
-    return { algorithm: "sha256", contract: CONTRACT, digestHex: await sha256Hex(text), inputBytes: text.byteLength };
+    return { algorithm: "sha256", contract: CONTRACT, digestHex: await edgeWorkerBodyDigestHex(text), inputBytes: text.byteLength };
   }
   const key = await crypto.subtle.importKey("raw", arrayBuffer(text), "PBKDF2", false, ["deriveBits"]);
   const output = await crypto.subtle.deriveBits(
